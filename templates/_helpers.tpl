@@ -55,3 +55,38 @@ else use user-provided name and port
 {{- printf "%s:%s" .Values.zookeeper.url $port }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Form the Nifi Registry URL and port. If nifi-registry is installed as part of this chart, use k8s service discovery,
+else use user-provided name and port
+*/}}
+{{- define "registry.url" }}
+{{- $port := .Values.registry.port | toString }}
+{{- if .Values.registry.enabled -}}
+{{- printf "http://nifi-registry:%s" $port }}
+{{- else -}}
+{{- printf "http://%s:%s" .Values.registry.url $port }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create ca.server
+*/}}
+{{- define "ca.server" }}
+{{- if .Values.ca.enabled -}}
+{{- printf "%s-ca" .Release.Name }}
+{{- else -}}
+{{- printf "%s" .Values.ca.server }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Set the service account name
+*/}}
+{{- define "apache-nifi.serviceAccountName" -}}
+{{- if .Values.sts.serviceAccount.create }}
+{{- default (include "apache-nifi.fullname" .) .Values.sts.serviceAccount.name }}-sa
+{{- else }}
+{{- default "default" .Values.sts.serviceAccount.name }}
+{{- end }}
+{{- end }}

@@ -37,12 +37,19 @@ The following items can be set via `--set` flag during installation or configure
 - **Disable**: The data does not survive the termination of a pod.
 - **Persistent Volume Claim(default)**: A default `StorageClass` is needed in the Kubernetes cluster to dynamic provision the volumes. Specify another StorageClass in the `storageClass` or set `existingClaim` if you have already existing persistent volumes to use.
 
+#### Configure authentication:
+
+- You first need a secure cluster which can be accomplished by enabling the built-in CA nifi-toolkit container (`ca.enabled` to true). By default, a secure nifi cluster uses certificate based authentication but you can optionally enable `ldap` or `oidc`. See the configuration section for more details.
+
+:warning: This feature is quite new. Please open an issue if you encounter a problem.
+We are currently working on the `ldap` authentication. Also, any help is welcome to add other authentication methods.
+
 ### Install the chart
 
 Install the nifi helm chart with a release name `my-release`:
 
 ```bash
-helm install --name my-release cetic/nifi
+helm install my-release cetic/nifi
 ```
 
 ### Install from local clone
@@ -61,7 +68,7 @@ helm install --name nifi .
 To uninstall/delete the `my-release` deployment:
 
 ```bash
-helm delete --purge my-release
+helm uninstall my-release
 ```
 
 ## Configuration
@@ -74,15 +81,18 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `replicaCount`                                                              | Number of nifi nodes                                                                                               | `1`                             |
 | **Image**                                                                   |
 | `image.repository`                                                          | nifi Image name                                                                                                    | `apache/nifi`                   |
-| `image.tag`                                                                 | nifi Image tag                                                                                                     | `1.11.4`                        |
+| `image.tag`                                                                 | nifi Image tag                                                                                                     | `1.12.1`                        |
 | `image.pullPolicy`                                                          | nifi Image pull policy                                                                                             | `IfNotPresent`                  |
 | `image.pullSecret`                                                          | nifi Image pull secret                                                                                             | `nil`                           |
 | **SecurityContext**                                                         |
 | `securityContext.runAsUser`                                                 | nifi Docker User                                                                                                   | `1000`                          |
 | `securityContext.fsGroup`                                                   | nifi Docker Group                                                                                                  | `1000`                          |
 | **sts**                                                                     |
+| `sts.serviceAccount.create`    | If true, a service account will be created and used by the statefulset | `false` |
+| `sts.serviceAccount.name`       | When set, the set name will be used as the service account name. If a value is not provided a name will be generated based on Chart options | `nil` |
 | `sts.podManagementPolicy`                                                   | Parallel podManagementPolicy                                                                                       | `Parallel`                      |
 | `sts.AntiAffinity`                                                          | Affinity for pod assignment                                                                                        | `soft`                          |
+| `sts.pod.annotations`                                                       | Pod template annotations                                                                                           | `security.alpha.kubernetes.io/sysctls: net.ipv4.ip_local_port_range=10000 65000`                          |
 | **secrets**
 | `secrets`                                                                   | Pass any secrets to the nifi pods. The secret can also be mounted to a specific path if required.                  | `nil`                           |
 | **configmaps**
@@ -100,11 +110,18 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `properties.siteToSite.port`                                                | Site to Site properties Secure port                                                                                | `10000`                         |
 | `properties.siteToSite.authorizer`                                          |                                                                                                                    | `managed-authorizer`            |
 | `properties.safetyValve`                                                    | Map of explicit 'property: value' pairs that overwrite other configuration                                         | `nil`                           |
+| `properties.customLibPath`                                                  | Path of the custom libraries folder                                                                                | `nil`                           |
 | **nifi user authentication**                                                |
+| `auth.admin`                                                                | Default admin identity                                                                                             | ` CN=admin, OU=NIFI`            |
 | `auth.ldap.enabled`                                                         | Enable User auth via ldap                                                                                          | `false`                         |
 | `auth.ldap.host`                                                            | ldap hostname                                                                                                      | `ldap://<hostname>:<port>`      |
 | `auth.ldap.searchBase`                                                      | ldap searchBase                                                                                                    | `CN=Users,DC=example,DC=com`    |
 | `auth.ldap.searchFilter`                                                    | ldap searchFilter                                                                                                  | `CN=john`                       |
+| `auth.oidc.enabled`                                                         | Enable User auth via oidc                                                                                          | `false`                         |
+| `auth.oidc.discoveryUrl`                                                    | oidc discover url                                                                                                  | `https://<provider>/.well-known/openid-configuration`      |
+| `auth.oidc.clientId`                                                        | oidc clientId                                                                                                      | `nil`    |
+| `auth.oidc.clientSecret`                                                    | oidc clientSecret                                                                                                  | `nil`                       |
+| `auth.oidc.claimIdentifyingUser`                                            | oidc claimIdentifyingUser                                                                                          | `email`                        |
 | **postStart**                                                               |
 | `postStart`                                                                 | Include additional libraries in the Nifi containers by using the postStart handler                                 | `nil`                           |
 | **Headless Service**                                                        |
@@ -129,6 +146,8 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `persistence.enabled`                                                       | Use persistent volume to store data                                                                                | `false`                         |
 | `persistence.storageClass`                                                  | Storage class name of PVCs (use the default type if unset)                                                         | `nil`                           |
 | `persistence.accessMode`                                                    | ReadWriteOnce or ReadOnly                                                                                          | `[ReadWriteOnce]`               |
+| `persistence.configStorage.size`                                            | Size of persistent volume claim                                                                                    | `100Mi`                         |
+| `persistence.authconfStorage.size`                                          | Size of persistent volume claim                                                                                    | `100Mi`                         |
 | `persistence.dataStorage.size`                                              | Size of persistent volume claim                                                                                    | `1Gi`                           |
 | `persistence.flowfileRepoStorage.size`                                      | Size of persistent volume claim                                                                                    | `10Gi`                          |
 | `persistence.contentRepoStorage.size`                                       | Size of persistent volume claim                                                                                    | `10Gi`                          |
@@ -138,9 +157,8 @@ The following table lists the configurable parameters of the nifi chart and the 
 | **jvmMemory**                                                               |
 | `jvmMemory`                                                                 | bootstrap jvm size                                                                                                 | `2g`                            |
 | **SideCar**                                                                 |
-| `sidecar.image`                                                             | Separate image for tailing each log separately                                                                     | `ez123/alpine-tini`             |
-| **BusyBox**                                                                 |
-| `busybox.image`                                                             | Separate image for initContainer that verifies zookeeper is accessible                                             | `busybox`                       |
+| `sidecar.image`                                                             | Separate image for tailing each log separately and checking zookeeper connectivity                                 | `busybox`                       |
+| `sidecar.tag`                                                               | Image tag                                                                                                          | `1.32.0`                        |
 | **Resources**                                                               |
 | `resources`                                                                 | Pod resource requests and limits for logs                                                                          | `{}`                            |
 | **logResources**                                                            |
@@ -159,16 +177,36 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `extraVolumeMounts`                                                         | VolumeMounts for the nifi-server container (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volumemount-v1-core) for details)  | `[]`                            |
 | **env**                                                                     |
 | `env`                                                                       | Additional environment variables for the nifi-container (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envvar-v1-core) for details)  | `[]`                            |
-| **extraContainers                                                           |
+| **extraContainers**                                                         |
 | `extraContainers`                                                           | Additional container-specifications that should run within the pod (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core) for details)  | `[]`                            |
+| **openshift**                                                                     |
+| `openshift.scc.enabled`                                                     | If true, a openshift security context will be created permitting to run the statefulset as AnyUID | `false` |
+| `openshift.route.enabled`                                                   | If true, a openshift route will be created. This option cannot be used together with Ingress as a route object replaces the Ingress. The property `properties.externalSecure` will configure the route in edge termination mode, the default is passthrough. The property `properties.httpsPort` has to be set if the cluster is intended to work with SSL termination | `false` |
+| `openshift.route.host`                                                      | The hostname intended to be used in order to access NiFi web interface | `nil` |
+| `openshift.route.path`                                                      | Path to access frontend, works the same way as the ingress path option | `nil` |
 | **zookeeper**                                                               |
-|`zookeeper.enabled`                                                          | If true, deploy Zookeeper                                                                                          | `true`                          |
-|`zookeeper.url`                                                              | If the Zookeeper Chart is disabled a URL and port are required to connect                                          | `nil`                           |
-|`zookeeper.port`                                                             | If the Zookeeper Chart is disabled a URL and port are required to connect                                          | `2181`                          |
+| `zookeeper.enabled`                                                         | If true, deploy Zookeeper                                                                                          | `true`                          |
+| `zookeeper.url`                                                             | If the Zookeeper Chart is disabled a URL and port are required to connect                                          | `nil`                           |
+| `zookeeper.port`                                                            | If the Zookeeper Chart is disabled a URL and port are required to connect                                          | `2181`                          |
+| **registry**                                                                |
+| `registry.enabled`                                                          | If true, deploy Nifi Registry                                                                                          | `true`                          |
+| `registry.url`                                                              | If the Nifi Registry Chart is disabled a URL and port are required to connect                                          | `nil`                           |
+| `registry.port`                                                             | If the Nifi Registry Chart is disabled a URL and port are required to connect                                          | `80`                            |
+| **ca**                                                                      |
+| `ca.enabled`                                                                | If true, deploy Nifi Toolkit as CA                                                                                          | `false`                          |
+| `ca.server`                                                                 | CA server dns name                                          | `nil`                           |
+| `ca.port`                                                                   | CA server port number                                          | `9090`                            |
+| `ca.token`                                                                  | The token to use to prevent MITM                                          | `80`                            |
+| `ca.admin.cn`                                                               | CN for admin certificate                                          | `admin`                            |
+| `ca.serviceAccount.create`                                                 | If true, a service account will be created and used by the deployment                                         | `false`                            |
+| `ca.serviceAccount.name`                                                 |When set, the set name will be used as the service account name. If a value is not provided a name will be generated based on Chart options | `nil` |
+| `ca.openshift.scc.enabled`                                                     | If true, an openshift security context will be created permitting to run the deployment as AnyUID | `false` |
 
 ## Credits
 
 Initially inspired from https://github.com/YolandaMDavis/apache-nifi.
+
+TLS work/inspiration from https://github.com/sushilkm/nifi-chart.git.
 
 ## Contributing
 
