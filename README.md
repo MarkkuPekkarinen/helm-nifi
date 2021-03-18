@@ -1,16 +1,16 @@
-# Helm Chart for Apache Nifi
+# Helm Chart for Apache NiFi
 
 [![CircleCI](https://circleci.com/gh/cetic/helm-nifi.svg?style=svg)](https://circleci.com/gh/cetic/helm-nifi/tree/master) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![version](https://img.shields.io/github/tag/cetic/helm-nifi.svg?label=release)
 
 ## Introduction
 
-This [Helm](https://github.com/kubernetes/helm) chart installs [nifi](https://nifi.apache.org/) in a Kubernetes cluster.
+This [Helm](https://helm.sh/) chart installs [Apache NiFi](https://nifi.apache.org/) in a [Kubernetes](https://kubernetes.io/) cluster.
 
 ## Prerequisites
 
 - Kubernetes cluster 1.10+
 - Helm 3.0.0+
-- PV provisioner support in the underlying infrastructure.
+- [Persistent Volumes (PV)](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) provisioner support in the underlying infrastructure.
 
 ## Installation
 
@@ -23,26 +23,49 @@ helm repo update
 
 ### Configure the chart
 
-The following items can be set via `--set` flag during installation or configured by editing the `values.yaml` directly (need to download the chart first).
+The following items can be set via `--set` flag during installation or configured by editing the [`values.yaml`](values.yaml) file directly (need to download the chart first).
 
-#### Configure the way how to expose nifi service:
+#### Configure how to expose nifi service
 
 - **Ingress**: The ingress controller must be installed in the Kubernetes cluster.
 - **ClusterIP**: Exposes the service on a cluster-internal IP. Choosing this value makes the service only reachable from within the cluster.
 - **NodePort**: Exposes the service on each Node’s IP at a static port (the NodePort). You’ll be able to contact the NodePort service, from outside the cluster, by requesting `NodeIP:NodePort`.
 - **LoadBalancer**: Exposes the service externally using a cloud provider’s load balancer.
 
-#### Configure the way how to persistent data:
+#### Configure how to persist data
 
 - **Disable**: The data does not survive the termination of a pod.
-- **Persistent Volume Claim(default)**: A default `StorageClass` is needed in the Kubernetes cluster to dynamic provision the volumes. Specify another StorageClass in the `storageClass` or set `existingClaim` if you have already existing persistent volumes to use.
+- **Persistent Volume Claim(default)**: A default `StorageClass` is needed in the Kubernetes cluster to dynamically provision the volumes. Specify another StorageClass in the `storageClass` or set `existingClaim` if you have already existing persistent volumes to use.
 
-#### Configure authentication:
+#### Configure authentication
 
 - You first need a secure cluster which can be accomplished by enabling the built-in CA nifi-toolkit container (`ca.enabled` to true). By default, a secure nifi cluster uses certificate based authentication but you can optionally enable `ldap` or `oidc`. See the configuration section for more details.
 
 :warning: This feature is quite new. Please open an issue if you encounter a problem.
-We are currently working on the `ldap` authentication. Also, any help is welcome to add other authentication methods.
+It seems that versions from 0.6.1 include some bugs for authentications. Please use version 0.6.0 of the chart until it is fixed. 
+
+#### Use custom processors
+
+To add [custom processors](https://cwiki.apache.org/confluence/display/NIFI/Maven+Projects+for+Extensions#MavenProjectsforExtensions-MavenProcessorArchetype), the `values.yaml` file `nifi` section should contain the following options, where `CUSTOM_LIB_FOLDER` should be replaced by the path where the libs are:
+
+```yaml
+  extraVolumeMounts:
+    - name: mycustomlibs
+      mountPath: /opt/configuration_resources/custom_lib
+  extraVolumes: # this will create the volume from the directory
+    - name: mycustomlibs
+      hostPath:
+        path: "CUSTOM_LIB_FOLDER"
+  properties:
+    customLibPath: "/opt/configuration_resources/custom_lib"
+```
+
+#### Configure prometheus monitoring
+
+- You first need monitoring to be enabled which can be accomplished by enabling the appropriate metrics flag (`metrics.prometheus.enabled` to true). 
+To enable the creation of prometheus metrics within Nifi we need to create a *Reporting Task*. Login to the Nifi UI and go to the Hamburger menu on the top right corner, click *Controller Settings* --> *Reporting Tasks* After that use the + icon to add a task. Click on the *Reporting* in the wordcloud on the left and select *PrometheusReportingTask* --> change *Send JVM metrics* to `true` and click on the play button to enable this task.
+
+If you plan to use Grafana for the visualization of the metrics data [the following dashboard](https://grafana.com/grafana/dashboards/12314) is compatible with the exposed metrics. 
 
 ### Install the chart
 
@@ -57,7 +80,8 @@ helm install my-release cetic/nifi
 ```bash
 git clone https://github.com/cetic/helm-nifi.git nifi
 cd nifi
-helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add dysnix https://dysnix.github.io/charts/
 helm repo update
 helm dep up
 helm install --name nifi .
@@ -88,6 +112,7 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `securityContext.runAsUser`                                                 | nifi Docker User                                                                                                   | `1000`                          |
 | `securityContext.fsGroup`                                                   | nifi Docker Group                                                                                                  | `1000`                          |
 | **sts**                                                                     |
+| `sts.useHostNetwork`                                                            | If true, use the host's network                                                                                    | `nil`                         |
 | `sts.serviceAccount.create`    | If true, a service account will be created and used by the statefulset | `false` |
 | `sts.serviceAccount.name`       | When set, the set name will be used as the service account name. If a value is not provided a name will be generated based on Chart options | `nil` |
 | `sts.podManagementPolicy`                                                   | Parallel podManagementPolicy                                                                                       | `Parallel`                      |
@@ -177,6 +202,7 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `extraVolumeMounts`                                                         | VolumeMounts for the nifi-server container (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volumemount-v1-core) for details)  | `[]`                            |
 | **env**                                                                     |
 | `env`                                                                       | Additional environment variables for the nifi-container (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envvar-v1-core) for details)  | `[]`                            |
+| `envFrom`                                                                       | Additional environment variables for the nifi-container from config-maps or secrets (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envfromsource-v1-core) for details)  | `[]`                            |
 | **extraContainers**                                                         |
 | `extraContainers`                                                           | Additional container-specifications that should run within the pod (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core) for details)  | `[]`                            |
 | **openshift**                                                                     |
@@ -201,6 +227,11 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `ca.serviceAccount.create`                                                 | If true, a service account will be created and used by the deployment                                         | `false`                            |
 | `ca.serviceAccount.name`                                                 |When set, the set name will be used as the service account name. If a value is not provided a name will be generated based on Chart options | `nil` |
 | `ca.openshift.scc.enabled`                                                     | If true, an openshift security context will be created permitting to run the deployment as AnyUID | `false` |
+| **metrics**                                                                     |
+| `metrics.prometheus.enabled`            | Enable prometheus to access nifi metrics endpoint                                                                                    | `false`                                                      |
+| `metrics.prometheus.port`              | Port where Nifi server will expose Prometheus metrics                                                                                  | `9092`                                                      |
+| `metrics.prometheus.serviceMonitor.enabled`       | If `true`, creates a Prometheus Operator ServiceMonitor (also requires `metrics.prometheus.enabled` to be `true`)                       | `false`                                        |
+| `metrics.prometheus.serviceMonitor.labels`       | Additional labels for the ServiceMonitor                       | `nil`                                        |
 
 ## Credits
 

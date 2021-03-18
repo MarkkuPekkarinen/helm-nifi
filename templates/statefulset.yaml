@@ -31,6 +31,10 @@ spec:
         release: {{ .Release.Name | quote }}
         heritage: {{ .Release.Service | quote }}
     spec:
+{{- if .Values.sts.useHostNetwork }}
+      hostNetwork: {{ .Values.sts.useHostNetwork }}
+      dnsPolicy: ClusterFirstWithHostNet
+{{- end }}
       serviceAccountName: {{ include "apache-nifi.serviceAccountName" . }}
       {{- if eq .Values.sts.AntiAffinity "hard"}}
       affinity:
@@ -137,6 +141,7 @@ spec:
 
           openssl pkcs12 -in "keystore.pkcs12" -out "key.pem" -nocerts -nodes -password "env:PASS"
           openssl pkcs12 -in "keystore.pkcs12" -out "crt.pem" -clcerts -nokeys -password "env:PASS"
+          openssl pkcs12 -in "keystore.pkcs12" -out "keystore.jks" -clcerts -nokeys -password "env:PASS"
         volumeMounts:
           - name: "config-data"
             mountPath: /data/config-data
@@ -188,7 +193,8 @@ spec:
           prop_replace nifi.remote.input.host ${FQDN}
           prop_replace nifi.cluster.node.address ${FQDN}
           prop_replace nifi.zookeeper.connect.string ${NIFI_ZOOKEEPER_CONNECT_STRING}
-
+          prop_replace nifi.web.http.host ${FQDN}
+{{- if .Values.auth.oidc.enabled }}
 {{- if .Values.properties.clusterSecure }}
           # Update nifi.properties for security properties
           prop_replace nifi.web.https.host ${FQDN}
@@ -207,8 +213,7 @@ spec:
           prop_replace nifi.web.proxy.host {{ template "apache-nifi.fullname" . }}.{{ .Release.Namespace }}.svc
 {{- end }}
 
-{{- else }}
-          prop_replace nifi.web.http.host ${FQDN}
+
 {{- end }}
 
 {{- if .Values.properties.safetyValve }}
@@ -216,6 +221,8 @@ spec:
           prop_replace {{ $prop }} "{{ $val }}" nifi.properties
   {{- end }}
 {{- end }}
+{{- end }}
+
 
           exec bin/nifi.sh run & nifi_pid="$!"
 
@@ -275,9 +282,18 @@ spec:
 
           echo NiFi running with PID ${nifi_pid}.
           wait ${nifi_pid}
+          {{ if .Values.auth.ldap }}
+          /opt/nifi/nifi-toolkit-current/bin/tls-toolkit.sh standalone -n '{{.Release.Name}}-nifi-0.{{.Release.Name}}-nifi-headless.{{.Release.Namespace}}.svc.cluster.local' -C '{{.Values.auth.ldap.admin}}' -o '/opt/nifi/nifi-current/conf/' -P {{.Values.auth.SSL.truststorePasswd}}  -S {{.Values.auth.SSL.keystorePasswd}}  --nifiPropertiesFile /opt/nifi/nifi-current/conf/nifi.properties
+          exec bin/nifi.sh run
+          {{ end }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
         ports:
+{{- if .Values.metrics.prometheus.enabled }}
+        - containerPort: {{ .Values.metrics.prometheus.port }}
+          name: metrics
+          protocol: TCP                  
+{{- end }}
 {{- if .Values.properties.httpsPort }}
         - containerPort: {{ .Values.properties.httpsPort }}
 {{- if .Values.sts.hostPort }}
@@ -300,6 +316,10 @@ spec:
 {{ toYaml .Values.env | indent 8 }}
 {{- end }}
 {{- if .Values.postStart }}
+{{- if .Values.envFrom }}
+        envFrom:
+{{ toYaml .Values.envFrom | indent 8 }}
+{{- end }}
         lifecycle:
           postStart:
             exec:
