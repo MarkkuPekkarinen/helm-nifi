@@ -7,7 +7,7 @@ replicaCount: 1
 ##
 image:
   repository: apache/nifi
-  tag: "1.14.0"
+  tag: "1.16.3"
   pullPolicy: "IfNotPresent"
 
   ## Optionally specify an imagePullSecret.
@@ -122,6 +122,9 @@ auth:
   singleUser:
     username: username
     password: changemechangeme # Must to have at least 12 characters
+
+  clientAuth:
+    enabled: false
 
   ldap:
     enabled: false
