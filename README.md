@@ -128,6 +128,7 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `properties.httpsPort`                                                      | web properties HTTPS port                                                                                          | `null`                          |
 | `properties.clusterPort`                                                    | cluster node port                                                                                                  | `6007`                          |
 | `properties.provenanceStorage`                                              | nifi provenance repository max storage size                                                                        | `8 GB`                          |
+| `properties.provenanceMaxStorageTime`                                       | nifi provenance repository max storage time                                                                        | `10 days`                          |
 | `properties.siteToSite.secure`                                              | Site to Site properties Secure mode                                                                                | `false`                         |
 | `properties.siteToSite.port`                                                | Site to Site properties Secure port                                                                                | `10000`                         |
 | `properties.safetyValve`                                                    | Map of explicit 'property: value' pairs that overwrite other configuration                                         | `nil`                           |
@@ -170,6 +171,8 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `service.loadBalancerSourceRanges`                                          | Address that are allowed when svc is `LoadBalancer`                                                                | `[]`                            |
 | `service.processors.enabled`                                                | Enables additional port/ports to nifi service for internal processors                                              | `false`                         |
 | `service.processors.ports`                                                  | Specify "name/port/targetPort/nodePort" for processors  sockets                                                    | `[]`                            |
+| **ContainerPorts**       |                                                  |
+| `containerPorts`                                                            | Additional containerPorts for the nifi-container. Example is given in values.yaml  | `[]` 
 | **Ingress**                                                                 |
 | `ingress.enabled`                                                           | Enables Ingress                                                                                                    | `false`                         |
 | `ingress.className`      | Ingress controller Class                                                                                   | `nginx`                                  |
