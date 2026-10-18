@@ -2,10 +2,15 @@
 
 [![CircleCI](https://circleci.com/gh/cetic/helm-nifi.svg?style=svg)](https://circleci.com/gh/cetic/helm-nifi/tree/master) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![version](https://img.shields.io/github/tag/cetic/helm-nifi.svg?label=release) ![test](https://github.com/cetic/helm-nifi/actions/workflows/test.yml/badge.svg)
 
+## $${\color{red}Maintainers \space Wanted}$$
+
+$${\color{red}This \space project \space is \space not \space maintained \space anymore.}$$
+
+If you are interested in maintaining a fork of this project, please chime in in the [dedicated issue](https://github.com/cetic/helm-nifi/issues/330).
 
 ## Introduction
 
-This [Helm](https://helm.sh/) chart installs [Apache NiFi](https://nifi.apache.org/) 1.16.3 in a [Kubernetes](https://kubernetes.io/) cluster.
+This [Helm](https://helm.sh/) chart installs [Apache NiFi](https://nifi.apache.org/) 1.23.2 in a [Kubernetes](https://kubernetes.io/) cluster.
 
 ## Prerequisites
 
@@ -36,7 +41,7 @@ The following items can be set via `--set` flag during installation or configure
 #### Configure how to persist data
 
 - **Disable(default)**: The data does not survive the termination of a pod.
-- **Persistent Volume Claim**: Enable persistence so that data survives termination of the pod.  There is the choice of using one large persistent volume (using subPath) or seven separate persistent volumes for config, data, logs, repos, etc.  
+- **Persistent Volume Claim**: Enable persistence so that data survives termination of the pod.  There is the choice of using one large persistent volume (using subPath) or seven separate persistent volumes for config, data, logs, repos, etc.
   A default `StorageClass` is needed in the Kubernetes cluster to dynamically provision the volumes. Specify another StorageClass in the `persistence.storageClass` setting.
 
 #### Configure authentication
@@ -96,7 +101,7 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `replicaCount`                                                              | Number of nifi nodes                                                                                               | `1`                             |
 | **Image**                                                                   |
 | `image.repository`                                                          | nifi Image name                                                                                                    | `apache/nifi`                   |
-| `image.tag`                                                                 | nifi Image tag                                                                                                     | `1.16.3`                        |
+| `image.tag`                                                                 | nifi Image tag                                                                                                     | `1.23.2`                        |
 | `image.pullPolicy`                                                          | nifi Image pull policy                                                                                             | `IfNotPresent`                  |
 | `image.pullSecret`                                                          | nifi Image pull secret                                                                                             | `nil`                           |
 | **SecurityContext**                                                         |
@@ -128,8 +133,16 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `properties.httpPort`                                                       | web properties HTTP port                                                                                           | `8080`                          |
 | `properties.httpsPort`                                                      | web properties HTTPS port                                                                                          | `null`                          |
 | `properties.clusterPort`                                                    | cluster node port                                                                                                  | `6007`                          |
+| `properties.clusterNodeConnectionTimeout`                                   | cluster node connection timeout                                                                                    | `5 sec`                         |
+| `properties.clusterNodeReadTimeout`                                         | cluster node read timeout                                                                                          | `5 sec`                         |
+| `properties.zookeeperConnectTimeout`                                        | zookeeper connect timeout                                                                                          | `3 secs`                        |
+| `properties.zookeeperSessionTimeout`                                        | zookeeper session timeout                                                                                          | `3 secs`                        |
+| `properties.archiveMaxRetentionPeriod`                                      | nifi content repository archive max retention period                                                               | `3 days`                           |
+| `properties.archiveMaxUsagePercentage`                                      |  nifi content repository archive max usage                                                                         | `85%`                           |
 | `properties.provenanceStorage`                                              | nifi provenance repository max storage size                                                                        | `8 GB`                          |
 | `properties.provenanceMaxStorageTime`                                       | nifi provenance repository max storage time                                                                        | `10 days`                          |
+| `properties.flowArchiveMaxTime`                                             | nifi flow archive max time                                                                        | `30 days`                          |
+| `properties.flowArchiveMaxStorage`                                          | nifi flow archive max storage                                                                     | `500 MB`                          |
 | `properties.siteToSite.secure`                                              | Site to Site properties Secure mode                                                                                | `false`                         |
 | `properties.siteToSite.port`                                                | Site to Site properties Secure port                                                                                | `10000`                         |
 | `properties.safetyValve`                                                    | Map of explicit 'property: value' pairs that overwrite other configuration                                         | `nil`                           |
@@ -156,6 +169,7 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `auth.oidc.clientId`                                                        | oidc clientId                                                                                                      | `nil`                           |
 | `auth.oidc.clientSecret`                                                    | oidc clientSecret                                                                                                  | `nil`                           |
 | `auth.oidc.claimIdentifyingUser`                                            | oidc claimIdentifyingUser                                                                                          | `email`                         |
+| `auth.oidc.preferredJwsAlgorithm`                                            | The preferred algorithm for validating identity tokens. If this value is blank, it will default to RS256 which is required to be supported by the OpenID Connect Provider according to the specification. If this value is HS256, HS384, or HS512, NiFi will attempt to validate HMAC protected tokens using the specified client secret. If this value is none, NiFi will attempt to validate unsecured/plain tokens.                                                                                           | `nil`                         |
 | `auth.oidc.admin`                                                           | Default OIDC admin identity                                                                                        | `nifi@example.com`              |
 | Note that OIDC authentication to a multi-NiFi-node cluster requires Ingress sticky sessions | See [background](https://community.cloudera.com/t5/Support-Questions/OIDC-With-Azure-AD/m-p/232324#M194163)      | Also [how](https://kubernetes.github.io/ingress-nginx/examples/affinity/cookie/) |
 | **postStart**                                                               |
@@ -173,7 +187,7 @@ The following table lists the configurable parameters of the nifi chart and the 
 | `service.processors.enabled`                                                | Enables additional port/ports to nifi service for internal processors                                              | `false`                         |
 | `service.processors.ports`                                                  | Specify "name/port/targetPort/nodePort" for processors  sockets                                                    | `[]`                            |
 | **ContainerPorts**       |                                                  |
-| `containerPorts`                                                            | Additional containerPorts for the nifi-container. Example is given in values.yaml  | `[]` 
+| `containerPorts`                                                            | Additional containerPorts for the nifi-container. Example is given in values.yaml  | `[]`
 | **Ingress**                                                                 |
 | `ingress.enabled`                                                           | Enables Ingress                                                                                                    | `false`                         |
 | `ingress.className`      | Ingress controller Class                                                                                   | `nginx`                                  |
@@ -222,6 +236,8 @@ The following table lists the configurable parameters of the nifi chart and the 
 | **env**                                                                     |
 | `env`                                                                       | Additional environment variables for the nifi-container (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envvar-v1-core) for details)  | `[]`                            |
 | `envFrom`                                                                       | Additional environment variables for the nifi-container from config-maps or secrets (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envfromsource-v1-core) for details)  | `[]`                            |
+| **extraOptions**                                                           |
+| `extraOptions`                                                              | Additional bootstrap.conf properties (see [properties](https://nifi.apache.org/docs/nifi-docs/html/administration-guide.html#bootstrap_properties) for details)  | `[]`                          |
 | **extraContainers**                                                         |
 | `extraContainers`                                                           | Additional container-specifications that should run within the pod (see [spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core) for details)  | `[]`                            |
 | **extraLabels**                                                         |

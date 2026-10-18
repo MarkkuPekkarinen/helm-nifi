@@ -191,6 +191,7 @@ spec:
           fi
 {{ end }}
 
+          prop_replace nifi.ui.banner.text $(hostname -s)
           prop_replace nifi.remote.input.host ${FQDN}
           prop_replace nifi.cluster.node.address ${FQDN}
           prop_replace nifi.zookeeper.connect.string ${NIFI_ZOOKEEPER_CONNECT_STRING}
@@ -659,6 +660,7 @@ spec:
                     -noprompt \
                     -trustcacerts \
                     -alias $ALIAS \
+                    -storetype JKS \
                     -file $ca \
                     -keystore "${NIFI_HOME}/tls/truststore-new.jks" \
                     -storepass "{{ .Values.certManager.truststorePasswd }}"
@@ -685,6 +687,7 @@ spec:
                       -destkeystore "${NIFI_HOME}/tls/keystore-new.jks" \
                       -srckeystore "/tmp/tls.p12" \
                       -srcstoretype PKCS12 \
+                      -deststoretype JKS \
                       -srcstorepass "{{ .Values.certManager.keystorePasswd }}" \
                       -deststorepass "{{ .Values.certManager.keystorePasswd }}"
               mv  "${NIFI_HOME}/tls/keystore-new.jks" "${NIFI_HOME}/tls/keystore.jks"
